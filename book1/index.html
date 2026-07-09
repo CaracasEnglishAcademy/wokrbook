@@ -1,0 +1,401 @@
+<!DOCTYPE html><html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curriculum Workbook System</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-primary: #E1EFF7;
+            --color-primary: #00609F;
+            --color-secondary: #84B2CF;
+            --color-dark: #0D4E7A;
+            --text-main: #333333;
+            --text-headers: #0D4E7A;
+            --text-inputs: #00609F;
+            --text-feedback: #D9534F;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--color-dark);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-panel {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px dashed var(--color-primary);
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .color-control-group {
+            display: inline-block;
+            margin-right: 15px;
+            margin-bottom: 10px;
+        }
+
+        .lesson-nav {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .lesson-nav { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .lesson-btn {
+            background-color: white;
+            border: 2px solid var(--color-secondary);
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--color-dark);
+            transition: all 0.3s ease;
+        }
+
+        .lesson-btn.active {
+            background-color: var(--color-primary);
+            color: white;
+            border-color: var(--color-dark);
+        }
+
+        .lesson-btn.locked {
+            background-color: #e0e0e0;
+            color: #a0a0a0;
+            border-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .main-card {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        h1, h2, h3 { color: var(--text-headers); }
+        
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--color-secondary);
+            border-radius: 4px;
+            box-sizing: border-box;
+            color: var(--text-inputs);
+            font-size: 16px;
+            margin-top: 8px;
+            margin-bottom: 15px;
+        }
+
+        .btn-action {
+            background-color: var(--color-primary);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn-action:hover { background-color: var(--color-dark); }
+        .btn-success { background-color: #28a745; }
+        .btn-success:hover { background-color: #1e7e34; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #bd2130; }
+
+        .status-banner {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="adminPanel" class="admin-panel">
+        <h3> Text Color Control System (Admin Mode)</h3>
+        <div class="color-control-group">
+            <label>Headers & Titles: </label>
+            <input type="color" id="colorHeaders" value="#0D4E7A" onchange="updateColors()">
+        </div>
+        <div class="color-control-group">
+            <label>Student Inputs: </label>
+            <input type="color" id="colorInputs" value="#00609F" onchange="updateColors()">
+        </div>
+        <div class="color-control-group">
+            <label>Feedback & Alerts: </label>
+            <input type="color" id="colorFeedback" value="#D9534F" onchange="updateColors()">
+        </div>
+        <hr>
+        <div id="teacherGradingControls" style="display:none;">
+            <h3> Teacher Evaluation Engine</h3>
+            <p>Reviewing work for: <span id="reviewStudentName" style="font-weight:bold;"></span></p>
+            <label>Lesson Score / Grade:</label>
+            <input type="text" id="teacherGradeInput" placeholder="e.g., A+, 95/100, Excellent work!">
+            <br><br>
+            <button class="btn-action btn-success" onclick="evaluateLesson('passed')">Approve & Unlock Next Lesson</button>
+            <button class="btn-action btn-danger" onclick="evaluateLesson('failed')">Reject & Request Redo</button>
+        </div>
+    </div>
+
+    <header>
+        <div>
+            <h1 id="mainTitle" style="margin:0; color:white;">Caracas English Academy</h1>
+            <p style="margin:5px 0 0 0;">Interactive Performance Workbook</p>
+        </div>
+        <div id="userDisplay"></div>
+    </header>
+
+    <div id="statusBanner" class="status-banner"></div>
+
+    <div class="lesson-nav">
+        <button class="lesson-btn active" id="btn1" onclick="switchLesson(1)">Lesson 1</button>
+        <button class="lesson-btn locked" id="btn2" onclick="switchLesson(2)">Lesson 2</button>
+        <button class="lesson-btn locked" id="btn3" onclick="switchLesson(3)">Lesson 3</button>
+        <button class="lesson-btn locked" id="btn4" onclick="switchLesson(4)">Lesson 4</button>
+        <button class="lesson-btn locked" id="btn5" onclick="switchLesson(5)">Lesson 5</button>
+        <button class="lesson-btn locked" id="btn6" onclick="switchLesson(6)">Lesson 6</button>
+        <button class="lesson-btn locked" id="btn7" onclick="switchLesson(7)">Lesson 7</button>
+        <button class="lesson-btn locked" id="btn8" onclick="switchLesson(8)">Lesson 8</button>
+        <button class="lesson-btn locked" id="btn9" onclick="switchLesson(9)">Lesson 9</button>
+        <button class="lesson-btn locked" id="btn10" onclick="switchLesson(10)">Lesson 10</button>
+        <button class="lesson-btn locked" id="btn11" onclick="switchLesson(11)">Lesson 11</button>
+        <button class="lesson-btn locked" id="btn12" onclick="switchLesson(12)">Lesson 12</button>
+    </div>
+
+    <div class="main-card">
+        <div id="identitySection">
+            <h2>Student Registration</h2>
+            <label>Full Name:</label>
+            <input type="text" id="studentName" placeholder="Enter your full name">
+            <label>Discord Handle:</label>
+            <input type="text" id="discordHandle" placeholder="username#0000">
+            <button class="btn-action" onclick="registerWorkbook()">Initialize Workbook Session</button>
+        </div>
+
+        <div id="workbookContent" style="display:none;">
+            <h2 id="currentLessonTitle">Lesson 1: Structural Foundations</h2>
+            <p>Complete the exercise tasks below accurately. Your submission freezes editing updates until evaluated by your instructor.</p>
+            
+            <label>Task Exercise 1: Written Composition</label>
+            <textarea id="lessonTextarea" rows="8" placeholder="Type your full answer essay answers here..."></textarea>
+            
+            <div id="gradeDisplay" style="margin-top:15px; font-weight:bold;"></div>
+            <br>
+            <button id="submitLessonBtn" class="btn-action btn-success" onclick="submitLessonForGrading()">Submit Completed Assignment</button>
+        </div>
+    </div>
+
+    <script>
+        // Paste your unique database connection metrics here
+        const SUPABASE_URL = "https://zddovywavwhrdcuohahb.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_ypCK4DGF5mNB3Ft-XnHarg_wgMS5sy-";
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentRecordId = localStorage.getItem('workbook_record_id') || null;
+        let activeLesson = 1;
+        let workbookState = { current_lesson: 1, lesson_status: 'in_progress', answers: {}, grades: {} };
+        let isTeacherMode = false;
+
+        // Check view configurations
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.has('admin')) {
+            document.getElementById('adminPanel').style.display = 'block';
+        }
+        if(urlParams.has('record')) {
+            currentRecordId = urlParams.get('record');
+            isTeacherMode = true;
+            document.getElementById('teacherGradingControls').style.display = 'block';
+            document.getElementById('identitySection').style.display = 'none';
+            document.getElementById('workbookContent').style.display = 'block';
+        }
+
+        async function init() {
+            if(currentRecordId) {
+                await fetchWorkbookData();
+                renderProgressionDock();
+                loadLessonData();
+                listenForRealtimeUpdates();
+            }
+        }
+
+        async function registerWorkbook() {
+            const name = document.getElementById('studentName').value;
+            const discord = document.getElementById('discordHandle').value;
+            if(!name || !discord) return alert("Please fill out your details.");
+
+            const { data, error } = await supabase.from('student_workbooks').insert([
+                { student_name: name, discord_handle: discord, answers: {}, grades: {} }
+            ]).select().single();
+
+            if(error) return alert("Error connection error setup failed.");
+            
+            currentRecordId = data.id;
+            localStorage.setItem('workbook_record_id', data.id);
+            document.getElementById('identitySection').style.display = 'none';
+            document.getElementById('workbookContent').style.display = 'block';
+            await init();
+        }
+
+        async function fetchWorkbookData() {
+            const { data, error } = await supabase.from('student_workbooks').select('*').eq('id', currentRecordId).single();
+            if(data) {
+                workbookState = data;
+                if(isTeacherMode) {
+                    document.getElementById('reviewStudentName').innerText = `${data.student_name} (${data.discord_handle})`;
+                    activeLesson = data.current_lesson;
+                }
+            }
+        }
+
+        function renderProgressionDock() {
+            for(let i = 1; i <= 12; i++) {
+                const btn = document.getElementById(`btn${i}`);
+                btn.className = "lesson-btn";
+                
+                if(i > workbookState.current_lesson) {
+                    btn.classList.add('locked');
+                }
+                if(i === activeLesson) {
+                    btn.classList.add('active');
+                }
+            }
+        }
+
+        function loadLessonData() {
+            document.getElementById('currentLessonTitle').innerText = `Lesson ${activeLesson}: Exercise Requirements`;
+            const textarea = document.getElementById('lessonTextarea');
+            textarea.value = workbookState.answers[activeLesson] || "";
+
+            const statusBanner = document.getElementById('statusBanner');
+            const submitBtn = document.getElementById('submitLessonBtn');
+            const gradeDisplay = document.getElementById('gradeDisplay');
+
+            // Set Grading feedback string
+            if(workbookState.grades[activeLesson]) {
+                gradeDisplay.innerText = `Teacher Feedback Grade: ${workbookState.grades[activeLesson]}`;
+            } else {
+                gradeDisplay.innerText = "";
+            }
+
+            // Lock logic state managers
+            if(activeLesson < workbookState.current_lesson) {
+                textarea.readOnly = true;
+                submitBtn.style.display = "none";
+                statusBanner.style.display = "block";
+                statusBanner.style.backgroundColor = "#28a745";
+                statusBanner.style.color = "white";
+                statusBanner.innerText = "✓ This assignment has been reviewed, approved and finalized.";
+            } else if (workbookState.lesson_status === 'submitted') {
+                textarea.readOnly = true;
+                submitBtn.style.display = "none";
+                statusBanner.style.display = "block";
+                statusBanner.style.backgroundColor = "#ffc107";
+                statusBanner.style.color = "#333";
+                statusBanner.innerText = " Waiting for teacher grading evaluation. Refreshing automatically on update...";
+            } else if (workbookState.lesson_status === 'failed' && activeLesson === workbookState.current_lesson) {
+                textarea.readOnly = false;
+                submitBtn.style.display = "block";
+                statusBanner.style.display = "block";
+                statusBanner.style.backgroundColor = "#dc3545";
+                statusBanner.style.color = "white";
+                statusBanner.innerText = " Assignment revision required. Review your teacher notes and resubmit.";
+            } else {
+                textarea.readOnly = isTeacherMode;
+                submitBtn.style.display = isTeacherMode ? "none" : "block";
+                statusBanner.style.display = "none";
+            }
+        }
+
+        function switchLesson(num) {
+            if(num > workbookState.current_lesson && !isTeacherMode) return;
+            activeLesson = num;
+            renderProgressionDock();
+            loadLessonData();
+        }
+
+        async function submitLessonForGrading() {
+            const val = document.getElementById('lessonTextarea').value;
+            workbookState.answers[activeLesson] = val;
+            
+            const { error } = await supabase.from('student_workbooks').update({
+                answers: workbookState.answers,
+                lesson_status: 'submitted'
+            }).eq('id', currentRecordId);
+
+            if(!error) {
+                // Triggering Discord Payload Dispatch Webhook Here
+                alert("Assignment payload successfully transmitted to your instructor!");
+                await fetchWorkbookData();
+                loadLessonData();
+            }
+        }
+
+        async function evaluateLesson(status) {
+            const gradeFeedback = document.getElementById('teacherGradeInput').value;
+            if(!gradeFeedback) return alert("Provide feedback metrics or grading data before finalizing context.");
+
+            workbookState.grades[activeLesson] = gradeFeedback;
+            let nextLesson = workbookState.current_lesson;
+            
+            if(status === 'passed') {
+                nextLesson = Math.min(12, workbookState.current_lesson + 1);
+            }
+
+            const { error } = await supabase.from('student_workbooks').update({
+                grades: workbookState.grades,
+                lesson_status: status,
+                current_lesson: nextLesson
+            }).eq('id', currentRecordId);
+
+            if(!error) {
+                alert(`Evaluation completed cleanly. Lesson execution state logged as: ${status.toUpperCase()}`);
+                window.location.reload();
+            }
+        }
+
+        function listenForRealtimeUpdates() {
+            supabase.channel('custom-filter-channel')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'student_workbooks', filter: `id=eq.${currentRecordId}` }, async (payload) => {
+                workbookState = payload.new;
+                renderProgressionDock();
+                loadLessonData();
+            })
+            .subscribe();
+        }
+
+        function updateColors() {
+            const root = document.documentElement;
+            root.style.setProperty('--text-headers', document.getElementById('colorHeaders').value);
+            root.style.setProperty('--text-inputs', document.getElementById('colorInputs').value);
+            root.style.setProperty('--text-feedback', document.getElementById('colorFeedback').value);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
