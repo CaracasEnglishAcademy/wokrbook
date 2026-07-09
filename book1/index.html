@@ -248,7 +248,7 @@
             const discord = document.getElementById('discordHandle').value;
             if(!name || !discord) return alert("Please fill out your details.");
 
-            const { data, error } = await supabase.from('student_workbooks').insert([
+            const { data, error } = await supabase.from('book1_workbooks').insert([
                 { student_name: name, discord_handle: discord, answers: {}, grades: {} }
             ]).select().single();
 
@@ -262,7 +262,7 @@
         }
 
         async function fetchWorkbookData() {
-            const { data, error } = await supabase.from('student_workbooks').select('*').eq('id', currentRecordId).single();
+            const { data, error } = await supabase.from('book1_workbooks').select('*').eq('id', currentRecordId).single();
             if(data) {
                 workbookState = data;
                 if(isTeacherMode) {
@@ -342,7 +342,7 @@
             const val = document.getElementById('lessonTextarea').value;
             workbookState.answers[activeLesson] = val;
             
-            const { error } = await supabase.from('student_workbooks').update({
+            const { error } = await supabase.from('book1_workbooks').update({
                 answers: workbookState.answers,
                 lesson_status: 'submitted'
             }).eq('id', currentRecordId);
@@ -366,7 +366,7 @@
                 nextLesson = Math.min(12, workbookState.current_lesson + 1);
             }
 
-            const { error } = await supabase.from('student_workbooks').update({
+            const { error } = await supabase.from('book1_workbooks').update({
                 grades: workbookState.grades,
                 lesson_status: status,
                 current_lesson: nextLesson
@@ -380,7 +380,7 @@
 
         function listenForRealtimeUpdates() {
             supabase.channel('custom-filter-channel')
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'student_workbooks', filter: `id=eq.${currentRecordId}` }, async (payload) => {
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'book1_workbooks', filter: `id=eq.${currentRecordId}` }, async (payload) => {
                 workbookState = payload.new;
                 renderProgressionDock();
                 loadLessonData();
