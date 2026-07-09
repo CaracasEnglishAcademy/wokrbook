@@ -44,6 +44,15 @@
             display: none;
         }
 
+        .teacher-panel {
+            background: #f4faf6;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #28a745;
+            margin-bottom: 20px;
+            display: none;
+        }
+
         .color-control-group {
             display: inline-block;
             margin-right: 15px;
@@ -149,16 +158,16 @@
             <label>Feedback & Alerts: </label>
             <input type="color" id="colorFeedback" value="#D9534F" onchange="updateColors()">
         </div>
-        <hr>
-        <div id="teacherGradingControls" style="display:none;">
-            <h3> Teacher Evaluation Engine</h3>
-            <p>Reviewing work for: <span id="reviewStudentName" style="font-weight:bold;"></span></p>
-            <label>Lesson Score / Grade:</label>
-            <input type="text" id="teacherGradeInput" placeholder="e.g., A+, 95/100, Excellent work!">
-            <br><br>
-            <button class="btn-action btn-success" onclick="evaluateLesson('passed')">Approve & Unlock Next Lesson</button>
-            <button class="btn-action btn-danger" onclick="evaluateLesson('failed')">Reject & Request Redo</button>
-        </div>
+    </div>
+
+    <div id="teacherPanel" class="teacher-panel">
+        <h3> Evaluation Workspace (Teacher View)</h3>
+        <p>Reviewing submissions for student: <span id="reviewStudentName" style="font-weight:bold; color:var(--text-headers);">Loading profile...</span></p>
+        <label>Assignment Assessment Notes / Grade Notation:</label>
+        <input type="text" id="teacherGradeInput" placeholder="e.g., A+, Approved, Excellent usage of vocabulary terms!">
+        <br><br>
+        <button class="btn-action btn-success" onclick="evaluateLesson('passed')">Accept Entry & Open Next Lesson</button>
+        <button class="btn-action btn-danger" onclick="evaluateLesson('failed')">Return Entry for Mandatory Redo</button>
     </div>
 
     <header>
@@ -210,32 +219,37 @@
     </div>
 
     <script>
-        // Unique database connection metrics
         const SUPABASE_URL = "https://zddovywavwhrdcuohahb.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_ypCK4DGF5mNB3Ft-XnHarg_wgMS5sy-";
         
-        // FIXED: Using window explicit invocation to prevent script-wide initialization crashes
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+        let supabase;
         let currentRecordId = localStorage.getItem('workbook_record_id') || null;
         let activeLesson = 1;
         let workbookState = { current_lesson: 1, lesson_status: 'in_progress', answers: {}, grades: {} };
         let isTeacherMode = false;
 
-        // Check view configurations
-        const urlParams = new URLSearchParams(window.location.search);
-        if(urlParams.has('admin')) {
-            document.getElementById('adminPanel').style.display = 'block';
-        }
-        if(urlParams.has('record')) {
-            currentRecordId = urlParams.get('record');
-            isTeacherMode = true;
-            document.getElementById('teacherGradingControls').style.display = 'block';
-            document.getElementById('identitySection').style.display = 'none';
-            document.getElementById('workbookContent').style.display = 'block';
-        }
-
         async function init() {
+            // Safety Interlock Check: Assure library presence before runtime initiation
+            if (!window.supabase) {
+                alert("Core Framework Alert: The database communication layer failed to download cleanly. Please check your web filters or reload the file container.");
+                return;
+            }
+            
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            // Read execution context directly out of URL query parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            if(urlParams.has('admin')) {
+                document.getElementById('adminPanel').style.display = 'block';
+            }
+            if(urlParams.has('record')) {
+                currentRecordId = urlParams.get('record');
+                isTeacherMode = true;
+                document.getElementById('teacherPanel').style.display = 'block';
+                document.getElementById('identitySection').style.display = 'none';
+                document.getElementById('workbookContent').style.display = 'block';
+            }
+
             if(currentRecordId) {
                 await fetchWorkbookData();
                 renderProgressionDock();
@@ -254,8 +268,8 @@
             ]).select().single();
 
             if(error) {
-                console.error("Supabase Error Details:", error);
-                return alert("Connection Error: " + error.message);
+                console.error("Database Log Context:", error);
+                return alert("Storage Rejection Error: " + error.message);
             }
             
             currentRecordId = data.id;
